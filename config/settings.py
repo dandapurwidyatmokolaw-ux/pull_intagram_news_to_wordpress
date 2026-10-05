@@ -64,7 +64,7 @@ APP_ENV = os.getenv("APP_ENV", "production")
 APP_PORT = int(os.getenv("APP_PORT", "5000"))
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5000").rstrip("/")
 FEEDBACK_SECRET_KEY = os.getenv("FEEDBACK_SECRET_KEY", "default_secret_key")
-GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "dandapurwidyatmokolaw-ux/dev_intagram_fh")
+GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "dandapurwidyatmokolaw-ux/pull_intagram_news_to_wordpress")
 
 def get_summary():
     """Mengembalikan ringkasan konfigurasi aktif tanpa membocorkan password."""

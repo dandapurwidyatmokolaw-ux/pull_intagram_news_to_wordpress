@@ -7,7 +7,7 @@
 - **Penyusun**: AI Agent Solution Architect
 - **Target Penerima Review/Notifikasi**: `danda@staff.undip.ac.id`
 - **Direktori Proyek**: `D:\dev_intagram_fh` (`/mnt/d/dev_intagram_fh`)
-- **Hosting Repositori**: GitHub (`https://github.com/dandapurwidyatmokolaw-ux/dev_intagram_fh`)
+- **Hosting Repositori**: GitHub (`https://github.com/dandapurwidyatmokolaw-ux/pull_intagram_news_to_wordpress`)
 - **Target Portal Web**: https://ilmuhukum.undip.ac.id (WordPress REST API)
 
 ---
