@@ -95,6 +95,9 @@ def render_html_page(title: str, content: str) -> str:
 </html>"""
 
 class FeedbackHandler(BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        self.do_GET()
+
     def log_message(self, format, *args):
         logger.info(f"{self.address_string()} - {format % args}")
 
@@ -273,9 +276,9 @@ class FeedbackHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
 def run_server(port: int = settings.APP_PORT):
-    server_address = ("", port)
+    server_address = ("0.0.0.0", port)
     httpd = HTTPServer(server_address, FeedbackHandler)
-    logger.info(f"Feedback Webhook Server aktif dan berjalan di http://localhost:{port}")
+    logger.info(f"Feedback Webhook Server aktif dan berjalan di http://0.0.0.0:{port} (mendukung akses localhost)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
