@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional
 from config import settings
 from src.mailer import verify_feedback_token, CuratorMailer
 from src.narrator import BilingualNarrator
+from src.wp_publisher import WordPressPublisher
 
 logging.basicConfig(
     level=logging.INFO,
@@ -150,28 +151,56 @@ class FeedbackHandler(BaseHTTPRequestHandler):
             # [A] ACTION: APPROVE
             if action == "approve":
                 update_post_status(post_id, "approved")
+                
+                # Memicu publikasi langsung ke WordPress REST API ilmuhukum.undip.ac.id
+                logger.info(f"Persetujuan diterima untuk post [{post_id}], memulai publikasi WordPress...")
+                publisher = WordPressPublisher()
+                pub_result = publisher.publish(post)
+
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                content = f"""
-                <div style="text-align:center;padding:10px 0 20px;">
-                  <div style="font-size:48px;color:#059669;margin-bottom:10px;">&check;</div>
-                  <h2 style="color:#059669;margin:0 0 10px;">Draf Berita Telah Disetujui!</h2>
-                  <p style="color:#475569;font-size:14px;line-height:1.6;">
-                    Terima kasih atas persetujuan Anda. Draf berita dwibahasa untuk postingan Instagram <strong>[{post_id}]</strong> 
-                    kini berstatus <strong>SIAP TERBIT (APPROVED)</strong>.
-                  </p>
-                </div>
-                <div style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:16px;margin:16px 0;text-align:left;">
-                  <div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;">Judul Berita:</div>
-                  <div style="font-size:15px;font-weight:700;color:#0B2545;margin-top:4px;">{draft.get('title_id')}</div>
-                  <div style="font-size:13px;font-style:italic;color:#475569;margin-top:4px;">{draft.get('title_en')}</div>
-                </div>
-                <p style="font-size:13px;color:#64748B;text-align:center;margin-top:20px;">
-                  Sistem otomatisasi publikasi akan segera mengunggah artikel ini ke portal resmi <strong>ilmuhukum.undip.ac.id</strong> lengkap dengan gambar unggulan.
-                </p>
-                """
-                self.wfile.write(render_html_page("Persetujuan Berhasil", content).encode())
+
+                if pub_result.get("success"):
+                    link_id = pub_result.get("id_post", {}).get("link", "#")
+                    link_en = pub_result.get("en_post", {}).get("link", "#")
+                    content = f"""
+                    <div style="text-align:center;padding:10px 0 20px;">
+                      <div style="font-size:48px;color:#059669;margin-bottom:10px;">&check;</div>
+                      <h2 style="color:#059669;margin:0 0 10px;">Berita Berhasil Diterbitkan!</h2>
+                      <p style="color:#475569;font-size:14px;line-height:1.6;">
+                        Draf berita dwibahasa untuk postingan Instagram <strong>[{post_id}]</strong> 
+                        telah resmi dipublikasikan ke portal <strong>ilmuhukum.undip.ac.id</strong> 
+                        dan antrean pending telah dibersihkan.
+                      </p>
+                    </div>
+                    <div style="background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:16px;margin:16px 0;text-align:left;">
+                      <div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;">Tautan Artikel Terbit (Live):</div>
+                      <div style="margin-top:8px;">
+                        <a href="{link_id}" target="_blank" style="color:#0B2545;font-weight:700;text-decoration:none;display:block;margin-bottom:6px;">
+                          &#127470;&#127465; Versi Bahasa Indonesia: {draft.get('title_id')} &rarr;
+                        </a>
+                        <a href="{link_en}" target="_blank" style="color:#134074;font-style:italic;text-decoration:none;display:block;">
+                          &#127468;&#127463; English Version: {draft.get('title_en')} &rarr;
+                        </a>
+                      </div>
+                    </div>
+                    <div style="text-align:center;margin-top:20px;">
+                      <a href="{link_id}" target="_blank" class="btn btn-green">Buka Berita di Web &rarr;</a>
+                    </div>
+                    """
+                else:
+                    err_msg = pub_result.get("message", "Gagal menghubungi WordPress REST API")
+                    content = f"""
+                    <div style="text-align:center;padding:10px 0 20px;">
+                      <div style="font-size:48px;color:#DC2626;margin-bottom:10px;">&cross;</div>
+                      <h2 style="color:#DC2626;margin:0 0 10px;">Publikasi Mengalami Kendala</h2>
+                      <p style="color:#475569;font-size:14px;line-height:1.6;">
+                        Persetujuan dicatat, namun terjadi kendala saat pengiriman ke WordPress: {err_msg}
+                      </p>
+                    </div>
+                    """
+                self.wfile.write(render_html_page("Status Publikasi", content).encode())
                 return
 
             # [B] ACTION: REVISE (FORM INPUT CATATAN)

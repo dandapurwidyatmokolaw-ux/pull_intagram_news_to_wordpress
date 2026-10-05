@@ -56,7 +56,8 @@ WP_BASE_URL = os.getenv("WP_BASE_URL", "https://ilmuhukum.undip.ac.id").rstrip("
 WP_USERNAME = os.getenv("WP_USERNAME", "")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD", "")
 WP_DEFAULT_STATUS = os.getenv("WP_DEFAULT_STATUS", "publish")
-WP_DEFAULT_CATEGORY_ID = int(os.getenv("WP_DEFAULT_CATEGORY_ID", "1"))
+WP_DEFAULT_CATEGORY_ID = int(os.getenv("WP_DEFAULT_CATEGORY_ID", "143"))
+WP_CATEGORY_ID_EN = int(os.getenv("WP_CATEGORY_ID_EN", "145"))
 
 # [6] Webhook & Server
 APP_ENV = os.getenv("APP_ENV", "production")
