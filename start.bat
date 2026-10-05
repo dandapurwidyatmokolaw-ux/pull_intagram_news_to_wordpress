@@ -13,7 +13,7 @@ echo.
 where wsl >nul 2>nul
 if %errorlevel% neq 0 (
     color 0C
-    echo [ERROR] WSL ^(Windows Subsystem for Linux^) tidak ditemukan di komputer ini!
+    echo [ERROR] WSL (Windows Subsystem for Linux) tidak ditemukan di komputer ini!
     echo Harap pastikan WSL dan Ubuntu telah terpasang.
     echo.
     pause
@@ -21,7 +21,7 @@ if %errorlevel% neq 0 (
 )
 
 :: 2. Memastikan Background Feedback Server Aktif di Port 5000
-echo [1/3] Memeriksa status Feedback Webhook Server ^(Port 5000^)...
+echo [1/3] Memeriksa status Feedback Webhook Server (Port 5000)...
 wsl.exe -d Ubuntu -e bash -c "pgrep -f 'src/feedback_server.py' >/dev/null || (cd /mnt/d/dev_intagram_fh && export PYTHONPATH=. && nohup python3 src/feedback_server.py --port 5000 > data/logs/feedback_server.log 2>&1 &)"
 
 ping 127.0.0.1 -n 3 >nul
@@ -47,7 +47,9 @@ echo  [4] Buka Folder Data, Media, dan Log di Windows Explorer
 echo  [5] Hentikan Server Webhook (Stop Server)
 echo  [0] Keluar (Biarkan Server Tetap Berjalan di Background)
 echo ==============================================================================
-set /p opt="Pilih opsi [0-5]: "
+
+choice /c 123450 /n /m "Pilih opsi [1-5 atau 0]: "
+set opt=%errorlevel%
 
 if "%opt%"=="1" (
     echo.
@@ -63,7 +65,7 @@ if "%opt%"=="2" (
 )
 
 if "%opt%"=="3" (
-    wsl.exe -d Ubuntu -e bash -c "LATEST=$(ls -t /mnt/d/dev_intagram_fh/data/email_previews/*.html 2>/dev/null | head -n 1); if [ -n "$LATEST" ]; then wslpath -w "$LATEST"; fi" > "%TEMP%\latest_preview.txt"
+    wsl.exe -d Ubuntu -e bash -c "LATEST=$(ls -t /mnt/d/dev_intagram_fh/data/email_previews/*.html 2>/dev/null | head -n 1); if [ -n \"$LATEST\" ]; then wslpath -w \"$LATEST\"; fi" > "%TEMP%\latest_preview.txt"
     set /p PREVIEW_PATH=<"%TEMP%\latest_preview.txt"
     if defined PREVIEW_PATH (
         start "" "%PREVIEW_PATH%"
@@ -84,7 +86,7 @@ if "%opt%"=="5" (
     goto MENU
 )
 
-if "%opt%"=="0" (
+if "%opt%"=="6" (
     echo.
     echo Server webhook tetap aktif di background port 5000.
     echo Gunakan stop.bat jika ingin menghentikan server sewaktu-waktu.
@@ -92,5 +94,4 @@ if "%opt%"=="0" (
     exit /b 0
 )
 
-echo Pilihan tidak valid, silakan coba lagi.
 goto MENU
