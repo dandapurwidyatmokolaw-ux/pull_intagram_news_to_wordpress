@@ -190,7 +190,18 @@ Sesuaikan variabel konfigurasi berikut:
 
 ## Petunjuk Penggunaan & Operasional
 
-### 1. Menjalankan Pipeline Harian
+### 1. Penggunaan Cepat via Windows (`start.bat` & `stop.bat`)
+Bagi pengguna Windows, sistem dapat dijalankan langsung tanpa membuka terminal WSL:
+- **`start.bat`**: Cukup klik dua kali (double click) file `start.bat` di folder `D:\dev_intagram_fh`:
+  * Otomatis menyalakan Feedback Webhook Server di background (Port 5000).
+  * Menjalankan penarikan postingan Instagram hari ini & menyusun narasi berita dwibahasa AI.
+  * Mengirim email kurasi interaktif ke `danda@staff.undip.ac.id`.
+  * Menampilkan menu interaktif untuk cek status, pratinjau browser, atau buka folder data.
+- **`stop.bat`**: Klik dua kali file `stop.bat` untuk menghentikan seluruh layanan server background di port 5000 dengan aman.
+
+---
+
+### 2. Menjalankan Pipeline Harian Manual (CLI WSL)
 Eksekusi pipeline lengkap (Scrape -> Narrate -> Send Email -> Publish Approved):
 ```bash
 PYTHONPATH=. python src/main.py
@@ -201,7 +212,7 @@ Opsi argumen:
 - `--auto-approve`: Langsung mempublikasikan draf baru ke web tanpa menunggu persetujuan kurator.
 - `--url <URL>`: Override URL Instagram sementara tanpa mengubah `.env`.
 
-### 2. Alur Kurasi & Revisi Interaktif
+### 3. Alur Kurasi & Revisi Interaktif
 1. Jalankan server webhook feedback di latar belakang:
    ```bash
    PYTHONPATH=. python src/feedback_server.py --port 5000 &
@@ -211,7 +222,7 @@ Opsi argumen:
    - **Tombol Hijau [SETUJUI & PUBLIKASIKAN]**: Mengubah status menjadi `approved` dan langsung memicu modul publisher untuk menerbitkan artikel ke web secara otomatis.
    - **Tombol Kuning [MINTA PERBAIKAN NARASI]**: Membuka antarmuka formulir web di mana staf dapat mengetikkan instruksi perubahan (misal: penambahan nama narasumber atau penyesuaian gaya bahasa). AI akan meregenerasi draf baru dan mengirimkan email konfirmasi baru secara berulang hingga disetujui.
 
-### 3. Publikasi Otomatis ke WordPress
+### 4. Publikasi Otomatis ke WordPress
 Anda juga dapat menerbitkan draf yang berstatus disetujui secara manual melalui CLI:
 ```bash
 PYTHONPATH=. python src/wp_publisher.py
