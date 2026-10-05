@@ -1,7 +1,7 @@
 """
 src/scraper.py
 Modul penarik data dan media Instagram dinamis berdasarkan konfigurasi .env.
-Mendukung ekstraksi otomatis melalui Headless Chromium, unduh media, dan anti-duplikasi.
+Mendukung filter ketat postingan hari ini (WIB / UTC+7), ekstraksi media, dan anti-duplikasi.
 """
 
 import os
@@ -10,7 +10,7 @@ import json
 import logging
 import subprocess
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -22,6 +22,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("InstagramScraper")
+
+# Timezone Indonesia Barat (WIB = UTC+7)
+TIMEZONE_WIB = timezone(timedelta(hours=7))
 
 class InstagramScraper:
     def __init__(self, target_url: Optional[str] = None, target_username: Optional[str] = None):
@@ -81,7 +84,7 @@ class InstagramScraper:
                 logger.warning(f"Chromium exit code {result.returncode}: {result.stderr[:200]}")
             return result.stdout
         except subprocess.TimeoutExpired:
-            logger.error("Timeout saat mengambil halaman Instagram via Chromium.")
+            logger.error(f"Timeout saat mengambil halaman Instagram: {url}")
             return ""
         except Exception as e:
             logger.error(f"Gagal menjalankan Chromium: {e}")
@@ -93,8 +96,6 @@ class InstagramScraper:
         if not dom_text:
             return nodes
 
-        # Cari pola script JSON yang memuat timeline connection
-        # Regex mencari string polaris_ordered_timeline_connection
         matches = re.findall(r'<script[^>]*>(.*?)</script>', dom_text, re.DOTALL)
         for content in matches:
             if "polaris_ordered_timeline_connection" not in content:
@@ -122,8 +123,38 @@ class InstagramScraper:
             except Exception:
                 continue
 
-        logger.info(f"Berhasil menemukan {len(nodes)} node postingan dari DOM Relay cache.")
+        logger.info(f"Berhasil menemukan {len(nodes)} node postingan dari profil.")
         return nodes
+
+    def get_post_exact_date(self, post_code: str) -> Optional[datetime]:
+        """
+        Mengambil tanggal publikasi eksak postingan dari halaman detail post.
+        Mengembalikan datetime dalam timezone WIB (Asia/Jakarta, UTC+7).
+        """
+        post_url = f"https://www.instagram.com/{self.target_username}/p/{post_code}/"
+        dom = self.fetch_page_dom(post_url)
+        if not dom:
+            return None
+
+        # 1. Cek nilai JSON taken_at (timestamp unix detik)
+        m_taken = re.search(r'"taken_at":\s*(\d+)', dom)
+        if m_taken:
+            ts = int(m_taken.group(1))
+            dt_wib = datetime.fromtimestamp(ts, tz=TIMEZONE_WIB)
+            return dt_wib
+
+        # 2. Cek tag <time datetime="...">
+        time_match = re.search(r'<time[^>]*datetime=["\']([^"\']+)["\']', dom)
+        if time_match:
+            iso_str = time_match.group(1).replace('Z', '+00:00')
+            try:
+                dt_utc = datetime.fromisoformat(iso_str)
+                dt_wib = dt_utc.astimezone(TIMEZONE_WIB)
+                return dt_wib
+            except Exception as e:
+                logger.warning(f"Gagal parse iso date {iso_str}: {e}")
+
+        return None
 
     def download_media(self, uri: str, post_code: str) -> Optional[str]:
         """Mengunduh gambar media postingan ke data/media/{post_code}.jpg."""
@@ -148,32 +179,48 @@ class InstagramScraper:
             logger.warning(f"Gagal mengunduh media {post_code}: {e}")
             return None
 
-    def scrape(self, max_posts: int = 10, force: bool = False) -> List[Dict[str, Any]]:
+    def scrape(self, today_only: bool = True, force: bool = False) -> List[Dict[str, Any]]:
         """
-        Menjalankan penarikan postingan baru dari target akun.
+        Menjalankan penarikan postingan dari target akun.
+        Jika today_only=True, HANYA mengambil postingan yang dipublikasikan pada hari ini (WIB).
         Menyimpan postingan baru ke data/pending_posts.json jika belum pernah diproses.
         """
         processed_ids = set() if force else self.load_processed_ids()
         dom = self.fetch_page_dom(self.target_url)
         raw_nodes = self.extract_nodes_from_dom(dom)
 
+        today_date_wib = datetime.now(TIMEZONE_WIB).date()
+        logger.info(f"Tanggal Hari Ini (WIB): {today_date_wib}. Filter today_only: {today_only}")
+
         new_posts = []
-        for node in raw_nodes[:max_posts]:
+        for i, node in enumerate(raw_nodes):
             code = node.get("code")
             if not code:
                 continue
 
             if code in processed_ids:
-                logger.debug(f"Post {code} sudah pernah diproses, lewati.")
+                logger.info(f"Post [{code}] sudah pernah diproses di antrean/riwayat, lewati.")
                 continue
 
-            # Parse timestamp jika ada
-            taken_at = node.get("taken_at")
-            if taken_at:
-                published_at = datetime.fromtimestamp(taken_at, tz=timezone.utc).isoformat()
-            else:
-                published_at = datetime.now(timezone.utc).isoformat()
+            # Periksa tanggal eksak postingan
+            exact_dt_wib = self.get_post_exact_date(code)
+            if not exact_dt_wib:
+                logger.warning(f"Tidak dapat menentukan tanggal untuk post [{code}], lewati.")
+                continue
 
+            post_date_wib = exact_dt_wib.date()
+            logger.info(f"Post [{code}] tanggal terbit WIB: {exact_dt_wib.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
+            if today_only:
+                if post_date_wib < today_date_wib:
+                    logger.info(f"Post [{code}] berasal dari tanggal sebelumnya ({post_date_wib} < {today_date_wib}). Menghentikan pencarian postingan lama.")
+                    # Karena postingan terurut kronologis mundur, jika ketemu yang lebih lama, hentikan loop
+                    break
+                elif post_date_wib > today_date_wib:
+                    # Tanggal masa depan (jika ada anomali timezone), lewati
+                    continue
+
+            # Postingan lolos filter (Hari Ini)
             caption = (node.get("caption") or {}).get("text", "")
             display_uri = node.get("display_uri")
             alt_desc = node.get("accessibility_caption", "")
@@ -186,7 +233,7 @@ class InstagramScraper:
                 "post_id": code,
                 "target_username": self.target_username,
                 "post_url": f"https://www.instagram.com/{self.target_username}/p/{code}/",
-                "published_at": published_at,
+                "published_at": exact_dt_wib.isoformat(),
                 "media_type": product_type,
                 "local_image_path": local_media_path,
                 "caption_raw": caption,
@@ -200,7 +247,7 @@ class InstagramScraper:
             processed_ids.add(code)
 
         if new_posts:
-            # Muat antrean lama dan gabungkan
+            # Muat antrean lama jika ada dan belum tayang
             existing_queue = []
             if self.pending_file.exists():
                 try:
@@ -209,27 +256,30 @@ class InstagramScraper:
                 except Exception:
                     existing_queue = []
 
-            # Gabungkan dengan prioritas data baru di depan
+            # Gabungkan dengan postingan baru
             combined_queue = new_posts + existing_queue
             with open(self.pending_file, "w", encoding="utf-8") as f:
                 json.dump(combined_queue, f, ensure_ascii=False, indent=2)
-            logger.info(f"Tersimpan {len(new_posts)} postingan baru ke {self.pending_file}.")
+            logger.info(f"Tersimpan {len(new_posts)} postingan hari ini ke {self.pending_file}.")
         else:
-            logger.info("Tidak ada postingan baru yang perlu ditambahkan ke antrean.")
+            logger.info("Tidak ada postingan hari ini yang perlu ditambahkan ke antrean.")
 
         return new_posts
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Instagram Content Scraper")
+    parser = argparse.ArgumentParser(description="Instagram Content Scraper (Harian)")
     parser.add_argument("--url", help="Target Instagram URL override")
     parser.add_argument("--user", help="Target Instagram username override")
-    parser.add_argument("--limit", type=int, default=5, help="Jumlah maksimal postingan yang ditarik")
+    parser.add_argument("--all", action="store_true", help="Ambil semua postingan tanpa filter hari ini")
     parser.add_argument("--force", action="store_true", help="Paksa tarik ulang meskipun sudah ada di riwayat")
     args = parser.parse_args()
 
     scraper = InstagramScraper(target_url=args.url, target_username=args.user)
-    posts = scraper.scrape(max_posts=args.limit, force=args.force)
-    print(f"\nHasil Eksekusi Scraper: {len(posts)} postingan baru.")
+    posts = scraper.scrape(today_only=not args.all, force=args.force)
+    print(f"\nHasil Eksekusi Scraper: {len(posts)} postingan hari ini.")
     for p in posts:
-        print(f"- [{p['post_id']}] {p['post_url']} | Media: {p['local_image_path']}")
+        print(f"- [{p['post_id']}] Waktu: {p['published_at']}")
+        print(f"  URL: {p['post_url']}")
+        print(f"  Media: {p['local_image_path']}")
+        print(f"  Caption: {p['caption_raw'][:100]}...\n")

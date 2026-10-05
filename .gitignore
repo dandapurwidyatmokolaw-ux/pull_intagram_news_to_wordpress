@@ -31,6 +31,7 @@ ENV/
 env/
 
 # Data and Media Artifacts (Runtime)
+images/
 data/media/*
 !data/media/.gitkeep
 data/pending_posts.json
