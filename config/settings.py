@@ -48,8 +48,8 @@ SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Redaksi Berita FH Undip Bot")
 # [4] AI Generator Gateway
 AI_PROVIDER = os.getenv("AI_PROVIDER", "9router")
 AI_API_BASE = os.getenv("AI_API_BASE", "http://127.0.0.1:20128/v1")
-AI_API_KEY = os.getenv("AI_API_KEY", "")
-AI_MODEL = os.getenv("AI_MODEL", "gpt-4o")
+AI_API_KEY = os.getenv("AI_API_KEY", "") or os.getenv("HERMES_CUSTOM_172_17_68_249_20128_API_KEY", "")
+AI_MODEL = os.getenv("AI_MODEL", "ag/gemini-3.8-flash-high")
 
 # [5] WordPress REST API
 WP_BASE_URL = os.getenv("WP_BASE_URL", "https://ilmuhukum.undip.ac.id").rstrip("/")
