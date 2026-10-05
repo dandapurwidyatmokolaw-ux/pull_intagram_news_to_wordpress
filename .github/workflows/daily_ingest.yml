@@ -1,0 +1,84 @@
+name: Daily Instagram News Ingest & Automation
+
+on:
+  schedule:
+    # 00:00 UTC = 07:00 WIB (Pagi) setiap hari
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force_scrape:
+        description: 'Paksa scrape ulang postingan'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  run-pipeline:
+    name: Execute Daily Ingestion Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser
+
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Configure Environment from Secrets
+      env:
+        INSTAGRAM_TARGET_URL: ${{ secrets.INSTAGRAM_TARGET_URL }}
+        INSTAGRAM_TARGET_USERNAME: ${{ secrets.INSTAGRAM_TARGET_USERNAME }}
+        CURATOR_EMAIL: ${{ secrets.CURATOR_EMAIL }}
+        SMTP_HOST: ${{ secrets.SMTP_HOST }}
+        SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        SMTP_USER: ${{ secrets.SMTP_USER }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+        AI_API_BASE: ${{ secrets.AI_API_BASE }}
+        AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        AI_MODEL: ${{ secrets.AI_MODEL }}
+        WP_BASE_URL: ${{ secrets.WP_BASE_URL }}
+        WP_USERNAME: ${{ secrets.WP_USERNAME }}
+        WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+        WP_DEFAULT_CATEGORY_ID: ${{ secrets.WP_DEFAULT_CATEGORY_ID }}
+        WP_CATEGORY_ID_EN: ${{ secrets.WP_CATEGORY_ID_EN }}
+        FEEDBACK_SECRET_KEY: ${{ secrets.FEEDBACK_SECRET_KEY }}
+      run: |
+        cat << 'EOF' > .env
+        INSTAGRAM_TARGET_URL=${INSTAGRAM_TARGET_URL:-https://www.instagram.com/law.undip/}
+        INSTAGRAM_TARGET_USERNAME=${INSTAGRAM_TARGET_USERNAME:-law.undip}
+        CURATOR_EMAIL=${CURATOR_EMAIL:-danda@staff.undip.ac.id}
+        SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+        SMTP_PORT=${SMTP_PORT:-587}
+        SMTP_USER=${SMTP_USER}
+        SMTP_PASSWORD=${SMTP_PASSWORD}
+        AI_PROVIDER=${AI_PROVIDER:-9router}
+        AI_API_BASE=${AI_API_BASE:-http://127.0.0.1:20128/v1}
+        AI_API_KEY=${AI_API_KEY}
+        AI_MODEL=${AI_MODEL:-ag/gemini-3.8-flash-high}
+        WP_BASE_URL=${WP_BASE_URL:-https://ilmuhukum.undip.ac.id}
+        WP_USERNAME=${WP_USERNAME:-admins1}
+        WP_APP_PASSWORD=${WP_APP_PASSWORD}
+        WP_DEFAULT_CATEGORY_ID=${WP_DEFAULT_CATEGORY_ID:-143}
+        WP_CATEGORY_ID_EN=${WP_CATEGORY_ID_EN:-145}
+        FEEDBACK_SECRET_KEY=${FEEDBACK_SECRET_KEY:-default_secret_key}
+        EOF
+
+    - name: Run Pipeline
+      env:
+        PYTHONPATH: .
+      run: |
+        python src/main.py
