@@ -19,7 +19,7 @@ if %errorlevel% neq 0 (
 echo [1/2] Menghentikan proses background feedback_server.py di WSL...
 wsl.exe -d Ubuntu -e bash -c "pkill -f 'src/feedback_server.py' || true"
 
-timeout /t 1 /nobreak >nul
+ping 127.0.0.1 -n 2 >nul
 
 echo [2/2] Memeriksa status port 5000...
 wsl.exe -d Ubuntu -e bash -c "ss -tulpn | grep 5000 >/dev/null && echo '[WARNING] Port 5000 masih terbuka' || echo '[SUKSES] Server webhook berhasil dihentikan. Port 5000 telah dilepaskan.'"

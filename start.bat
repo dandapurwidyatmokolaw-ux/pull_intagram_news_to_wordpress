@@ -24,7 +24,7 @@ if %errorlevel% neq 0 (
 echo [1/3] Memeriksa status Feedback Webhook Server ^(Port 5000^)...
 wsl.exe -d Ubuntu -e bash -c "pgrep -f 'src/feedback_server.py' >/dev/null || (cd /mnt/d/dev_intagram_fh && export PYTHONPATH=. && nohup python3 src/feedback_server.py --port 5000 > data/logs/feedback_server.log 2>&1 &)"
 
-timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 3 >nul
 wsl.exe -d Ubuntu -e bash -c "curl -s http://localhost:5000/health >/dev/null && echo '[OK] Feedback Webhook Server aktif dan berjalan di http://localhost:5000' || echo '[WARNING] Feedback Server sedang bersiap...'"
 echo.
 
@@ -88,7 +88,7 @@ if "%opt%"=="0" (
     echo.
     echo Server webhook tetap aktif di background port 5000.
     echo Gunakan stop.bat jika ingin menghentikan server sewaktu-waktu.
-    timeout /t 2 >nul
+    ping 127.0.0.1 -n 3 >nul
     exit /b 0
 )
 
