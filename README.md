@@ -242,12 +242,15 @@ Jalankan `crontab -e` dan tambahkan baris berikut untuk mengeksekusi otomatis se
 0 7 * * * /bin/bash /mnt/d/dev_intagram_fh/scripts/run_daily.sh
 ```
 
-### Windows Task Scheduler
-Buat Basic Task di Windows Task Scheduler:
-- **Trigger**: Daily at 07:00 AM
-- **Action**: Start a program
-- **Program**: `wsl.exe`
-- **Arguments**: `-d Ubuntu -e /bin/bash /mnt/d/dev_intagram_fh/scripts/run_daily.sh`
+### Windows Task Scheduler (Otomatis Jam 08:00 WIB)
+Penjadwalan otomatis jam 08:00 WIB di Windows dapat dikelola secara instan menggunakan script batch:
+- **Pasang Jadwal**: Klik dua kali `scripts\pasang_jadwal_jam_08.bat` (Otomatis mendaftarkan task `OtomasiBeritaInstagramFHUndip` setiap hari pukul 08:00 WIB).
+- **Hapus Jadwal**: Klik dua kali `scripts\hapus_jadwal.bat` jika ingin membatalkan jadwal otomatis.
+
+Atau secara manual via CMD:
+```cmd
+schtasks.exe /create /tn "OtomasiBeritaInstagramFHUndip" /tr "wsl.exe -d Ubuntu -e bash -c \"cd /mnt/d/dev_intagram_fh && /bin/bash scripts/run_daily.sh\"" /sc daily /st 08:00 /f
+```
 
 ---
 
